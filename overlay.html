@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Splatoon XP Counter Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@1,700&family=M+PLUS+Rounded+1c:wght@900&family=Montserrat:ital,wght@1,900&family=Orbitron:wght@900&family=Russo+One&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background-color: transparent !important; overflow: hidden; }
+
+/* 全体サイズ 1500 x 650 */
+.main-container {
+  width: 1500px; height: 650px; position: relative;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  overflow: hidden; padding: 10px 20px; gap: 5px;
+}
+
+.bg-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; display: none; }
+
+/* XP数値表示 */
+.xp-display {
+  position: relative; z-index: 2; font-weight: 900; white-space: nowrap; line-height: 1; letter-spacing: 2px;
+  font-family: 'Russo One', sans-serif; color: #00ff66; transform: skewX(-8deg);
+  text-shadow: -10px 10px 0 #000, 10px 10px 0 #000, -10px -10px 0 #000, 10px 10px 0 #000, -15px 0px 0 #000, 15px 0px 0 #000, 0px -15px 0 #000, 0px 15px 0 #000, 18px 18px 30px rgba(0,0,0,0.9);
+}
+
+/* サブ行（ランプ群＆戦績表示） */
+.sub-row {
+  position: relative; z-index: 2; display: flex; align-items: center; gap: 50px;
+  transform: skewX(-8deg); margin-top: 5px;
+}
+
+/* 2段構造のランプブロック */
+.lamps-block { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.lamp-group { display: flex; gap: 20px; align-items: center; justify-content: center; }
+
+/* 〇 勝ちランプ（大型: 直径 140px） */
+.lamp-win {
+  width: 140px; height: 140px; border-radius: 50%;
+  border: 8px solid #1a1a1a; background: rgba(0, 0, 0, 0.8);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 90px; font-weight: 900; line-height: 1;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.9), inset 0 5px 12px rgba(0,0,0,0.95);
+  transition: all 0.2s ease-in-out; color: transparent;
+}
+.lamp-win.active {
+  border-color: #00ff66; color: #00ff66; background: rgba(0, 70, 30, 0.95);
+  box-shadow: 0 0 35px #00ff66, 0 0 70px rgba(0,255,102,0.6), inset 0 0 22px #00ff66;
+  text-shadow: 0 0 22px #00ff66;
+}
+
+/* ✖ 負けランプ（小型: 直径 90px） */
+.lamp-loss {
+  width: 90px; height: 90px; border-radius: 50%;
+  border: 6px solid #1a1a1a;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 55px; font-weight: 900; line-height: 1;
+  transition: all 0.2s ease-in-out;
+}
+/* 常時点灯（オレンジ色） */
+.lamp-loss.on {
+  border-color: #ff9900; background: #ff9900;
+  box-shadow: 0 0 25px #ff9900, 0 0 50px rgba(255, 153, 0, 0.6), inset 0 0 12px #ffffff;
+  color: transparent;
+}
+/* 消灯＋✖表示（赤・ネオン） */
+.lamp-loss.off {
+  border-color: #ff3366; color: #ff3366; background: rgba(50, 0, 15, 0.9);
+  box-shadow: 0 0 18px rgba(255,51,102,0.4), inset 0 0 8px rgba(0,0,0,0.8);
+  text-shadow: 0 0 12px #ff3366;
+}
+
+/* 総戦績テキスト */
+.record-display {
+  font-family: 'Russo One', sans-serif; font-size: 95px; font-weight: 900;
+  color: #ffffff; white-space: nowrap;
+  text-shadow: -8px 8px 0 #000, 8px 8px 0 #000, -8px -8px 0 #000, 8px -8px 0 #000, 14px 14px 30px rgba(0,0,0,0.95);
+}
+</style>
+</head>
+<body>
+<div class="main-container" id="mainContainer">
+  <img id="bgImage" class="bg-image" alt="Background">
+  <div class="xp-display" id="xpDisplay">XP 2000</div>
+  
+  <div class="sub-row" id="subRow">
+    <div class="lamps-block">
+      <!-- 上段：勝ちランプ（大） -->
+      <div class="lamp-group">
+        <div class="lamp-win" id="winLamp0"></div>
+        <div class="lamp-win" id="winLamp1"></div>
+        <div class="lamp-win" id="winLamp2"></div>
+      </div>
+      <!-- 下段：負けランプ（小） -->
+      <div class="lamp-group">
+        <div class="lamp-loss on" id="lossLamp0"></div>
+        <div class="lamp-loss on" id="lossLamp1"></div>
+        <div class="lamp-loss on" id="lossLamp2"></div>
+      </div>
+    </div>
+    <div class="record-display" id="overlayRecord">0勝 0敗</div>
+  </div>
+</div>
+
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const roomId = urlParams.get('id') || 'default';
+const storageKey = `splat_xp_data_${roomId}`;
+const channelName = `splat_xp_bc_${roomId}`;
+
+function adjustFontSize() {
+  const container = document.getElementById('mainContainer');
+  const text = document.getElementById('xpDisplay');
+  if (!container || !text) return;
+  const maxWidth = container.clientWidth - 40;
+  let fontSize = 270;
+  text.style.fontSize = fontSize + 'px';
+  while (text.offsetWidth > maxWidth && fontSize > 10) {
+    fontSize -= 2;
+    text.style.fontSize = fontSize + 'px';
+  }
+}
+
+function applyState(data) {
+  if (!data) return;
+  
+  document.getElementById('xpDisplay').innerText = `XP ${data.xp}`;
+  if(data.font) {
+    document.getElementById('xpDisplay').style.fontFamily = data.font;
+    document.getElementById('overlayRecord').style.fontFamily = data.font;
+  }
+  if(data.color) document.getElementById('xpDisplay').style.color = data.color;
+
+  const img = document.getElementById('bgImage');
+  if (data.bgData) {
+    img.src = data.bgData;
+    img.style.display = 'block';
+  } else {
+    img.style.display = 'none';
+    img.src = '';
+  }
+
+  // 勝ちランプ表示適用
+  const winCount = data.winLamps || 0;
+  for (let i = 0; i < 3; i++) {
+    const el = document.getElementById(`winLamp${i}`);
+    if (i < winCount) {
+      el.className = 'lamp-win active';
+      el.innerText = '〇';
+    } else {
+      el.className = 'lamp-win';
+      el.innerText = '';
+    }
+  }
+
+  // 負けランプ表示適用（未消灯=オレンジ点灯、消灯=✖表示）
+  const lossCount = data.lossLamps || 0;
+  for (let i = 0; i < 3; i++) {
+    const el = document.getElementById(`lossLamp${i}`);
+    if (i < lossCount) {
+      el.className = 'lamp-loss off';
+      el.innerText = '✖';
+    } else {
+      el.className = 'lamp-loss on';
+      el.innerText = '';
+    }
+  }
+
+  const wins = data.wins || 0;
+  const losses = data.losses || 0;
+  document.getElementById('overlayRecord').innerText = `${wins}勝 ${losses}敗`;
+
+  adjustFontSize();
+}
+
+function loadState() {
+  const saved = localStorage.getItem(storageKey);
+  if (saved) {
+    try { applyState(JSON.parse(saved)); } catch(e){}
+  }
+}
+
+loadState();
+
+try {
+  const bc = new BroadcastChannel(channelName);
+  bc.onmessage = (e) => applyState(e.data);
+} catch(e){}
+
+window.addEventListener('storage', (e) => {
+  if (e.key === storageKey && e.newValue) {
+    try { applyState(JSON.parse(e.newValue)); } catch(err){}
+  }
+});
+
+setInterval(loadState, 1000);
+document.fonts.ready.then(adjustFontSize);
+</script>
+</body>
+</html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>XP Counter Controller</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+body { background: #1e1e24; color: #fff; padding: 12px; }
+.panel { display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+label { font-size: 12px; color: #aaa; width: 65px; }
+input[type="number"], select, input[type="color"] {
+  padding: 6px 8px; font-size: 13px; border-radius: 4px;
+  border: 1px solid #444; background: #2b2b36; color: #fff; outline: none;
+}
+input[type="number"] { width: 85px; }
+select { flex: 1; cursor: pointer; }
+.btn {
+  padding: 8px 12px; font-size: 13px; font-weight: bold; border-radius: 6px;
+  border: none; cursor: pointer; color: white; transition: transform 0.1s;
+}
+.btn:active { transform: scale(0.95); }
+.btn-add { background-color: #28a745; flex: 1; }
+.btn-sub { background-color: #dc3545; flex: 1; }
+.btn-win { background-color: #00b0ff; flex: 1; }
+.btn-loss { background-color: #ff3d00; flex: 1; }
+.btn-undo { background-color: #666; width: 75px; }
+
+.btn-reset-lamp { background-color: #fd7e14; flex: 1; padding: 10px; font-size: 12px; }
+.btn-reset-record { background-color: #c82333; flex: 1; padding: 10px; font-size: 12px; }
+
+.file-btn { font-size: 11px; flex: 1; }
+.clear-btn { background: #555; color: #ccc; padding: 4px 8px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer; }
+
+.section-title { font-size: 11px; color: #888; border-bottom: 1px solid #333; padding-bottom: 2px; margin-top: 4px; }
+
+.url-box {
+  background: #111116; border: 1px solid #333; padding: 8px; border-radius: 6px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.url-box span { font-size: 11px; color: #00ff66; font-weight: bold; }
+.url-input-group { display: flex; gap: 6px; }
+.url-input-group input {
+  flex: 1; font-size: 11px; padding: 4px 6px; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px;
+}
+.copy-btn {
+  background: #007bff; color: #fff; border: none; padding: 4px 10px; font-size: 11px; font-weight: bold;
+  border-radius: 4px; cursor: pointer; white-space: nowrap;
+}
+.status { font-size: 10px; color: #00ff66; text-align: right; }
+
+/* ランププレビュー設定 */
+.lamp-preview { display: flex; flex-direction: column; gap: 6px; background: #111116; padding: 8px 10px; border-radius: 6px; }
+.lamp-row { display: flex; gap: 6px; align-items: center; }
+.lamp-row-label { font-size: 11px; color: #aaa; width: 35px; }
+
+/* 勝ちランププレビュー（少し大きめ） */
+.lamp-dot-win { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
+.lamp-dot-win.win { border-color: #00ff66; color: #00ff66; background: rgba(0,255,102,0.2); }
+
+/* 負けランププレビュー（少し小さめ） */
+.lamp-dot-loss { width: 15px; height: 15px; border-radius: 50%; border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; }
+.lamp-dot-loss.loss-on { border-color: #ff9900; background: #ff9900; box-shadow: 0 0 6px #ff9900; }
+.lamp-dot-loss.loss-off { border-color: #ff3366; color: #ff3366; background: rgba(255,51,102,0.1); }
+
+.record-text { margin-left: auto; font-size: 13px; font-weight: bold; color: #ffd700; }
+</style>
+</head>
+<body>
+<div class="panel">
+  <div class="url-box">
+    <span>▼ OBSブラウザソース用URL（自分専用）</span>
+    <div class="url-input-group">
+      <input type="text" id="overlayUrlInput" readonly>
+      <button class="copy-btn" onclick="copyUrl()">URLコピー</button>
+    </div>
+    <div class="status">通信機能: 正常</div>
+  </div>
+
+  <div class="section-title">XP操作</div>
+  <div class="row">
+    <button class="btn btn-add" onclick="updateXP(1)">+ 加算</button>
+    <button class="btn btn-sub" onclick="updateXP(-1)">- 減算</button>
+  </div>
+  <div class="row">
+    <label>増減値:</label>
+    <input type="number" id="stepInput" value="10" step="1">
+  </div>
+  <div class="row">
+    <label>直接入力:</label>
+    <input type="number" id="directInput" value="2000" onchange="setDirectXP(this.value)">
+  </div>
+
+  <div class="section-title">勝敗・ランプ判定</div>
+  <div class="row">
+    <button class="btn btn-win" onclick="addResult('win')">〇 勝（WIN）</button>
+    <button class="btn btn-loss" onclick="addResult('loss')">✖ 負（LOSE）</button>
+    <button class="btn btn-undo" onclick="undoResult()">1つ消去</button>
+  </div>
+  
+  <div class="lamp-preview">
+    <div class="lamp-row">
+      <span class="lamp-row-label">勝ち:</span>
+      <div class="lamp-dot-win" id="winDot0"></div>
+      <div class="lamp-dot-win" id="winDot1"></div>
+      <div class="lamp-dot-win" id="winDot2"></div>
+      <div class="record-text" id="recordText">0勝0敗</div>
+    </div>
+    <div class="lamp-row">
+      <span class="lamp-row-label">負け:</span>
+      <div class="lamp-dot-loss" id="lossDot0"></div>
+      <div class="lamp-dot-loss" id="lossDot1"></div>
+      <div class="lamp-dot-loss" id="lossDot2"></div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top: 2px;">
+    <button class="btn btn-reset-lamp" onclick="clearLamps()">🧹 ランプ全消去</button>
+    <button class="btn btn-reset-record" onclick="resetRecord()">⚠️ 戦績完全リセット</button>
+  </div>
+
+  <div class="section-title">デザイン設定</div>
+  <div class="row">
+    <label>フォント:</label>
+    <select id="fontSelect" onchange="changeFont(this.value)">
+      <option value="'Russo One', sans-serif">Russo One</option>
+      <option value="'M PLUS Rounded 1c', sans-serif">M PLUS Rounded</option>
+      <option value="'Chakra Petch', sans-serif">Chakra Petch</option>
+      <option value="'Montserrat', sans-serif">Montserrat</option>
+      <option value="'Orbitron', sans-serif">Orbitron</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>文字色:</label>
+    <input type="color" id="colorPicker" value="#00ff66" onchange="changeColor(this.value)">
+  </div>
+  <div class="row">
+    <label>背景PNG:</label>
+    <input type="file" id="imageLoader" accept="image/png" class="file-btn">
+    <button class="clear-btn" onclick="clearBG()">削除</button>
+  </div>
+</div>
+
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+let roomId = urlParams.get('id');
+
+if (!roomId) {
+  roomId = localStorage.getItem('splat_xp_my_room_id');
+  if (!roomId) {
+    roomId = Math.random().toString(36).substring(2, 10);
+    localStorage.setItem('splat_xp_my_room_id', roomId);
+  }
+  const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?id=' + roomId;
+  window.history.replaceState({path: newUrl}, '', newUrl);
+} else {
+  localStorage.setItem('splat_xp_my_room_id', roomId);
+}
+
+const overlayUrl = `${window.location.origin}${window.location.pathname.replace('control.html', 'overlay.html')}?id=${roomId}`;
+document.getElementById('overlayUrlInput').value = overlayUrl;
+
+function copyUrl() {
+  const input = document.getElementById('overlayUrlInput');
+  input.select();
+  navigator.clipboard.writeText(input.value);
+  alert('自分専用のOBS用URLをコピーしました！\nOBSのブラウザソースに貼り付けてください。');
+}
+
+const storageKey = `splat_xp_data_${roomId}`;
+const channelName = `splat_xp_bc_${roomId}`;
+let bc = null;
+try { bc = new BroadcastChannel(channelName); } catch(e) {}
+
+let state = {
+  xp: 2000,
+  font: "'Russo One', sans-serif",
+  color: "#00ff66",
+  bgData: "",
+  winLamps: 0,
+  lossLamps: 0,
+  wins: 0,
+  losses: 0,
+  _ts: Date.now()
+};
+
+function renderUI() {
+  document.getElementById('directInput').value = state.xp || 2000;
+  if(state.font) document.getElementById('fontSelect').value = state.font;
+  if(state.color) document.getElementById('colorPicker').value = state.color;
+
+  const winCount = state.winLamps || 0;
+  for (let i = 0; i < 3; i++) {
+    const dot = document.getElementById(`winDot${i}`);
+    dot.className = 'lamp-dot-win';
+    dot.innerText = '';
+    if (i < winCount) {
+      dot.classList.add('win');
+      dot.innerText = '〇';
+    }
+  }
+
+  const lossCount = state.lossLamps || 0;
+  for (let i = 0; i < 3; i++) {
+    const dot = document.getElementById(`lossDot${i}`);
+    dot.className = 'lamp-dot-loss';
+    if (i < lossCount) {
+      dot.classList.add('loss-off');
+      dot.innerText = '✖';
+    } else {
+      dot.classList.add('loss-on');
+      dot.innerText = '';
+    }
+  }
+
+  document.getElementById('recordText').innerText = `${state.wins || 0}勝${state.losses || 0}敗`;
+}
+
+function saveAndSendState() {
+  state._ts = Date.now();
+  localStorage.setItem(storageKey, JSON.stringify(state));
+  if (bc) { try { bc.postMessage(state); } catch(e){} }
+  renderUI();
+}
+
+function loadSavedState() {
+  const saved = localStorage.getItem(storageKey);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      state = { ...state, ...parsed };
+    } catch(e) {}
+  }
+  saveAndSendState();
+}
+
+function updateXP(direction) {
+  const step = parseFloat(document.getElementById('stepInput').value) || 0;
+  state.xp = (parseFloat(state.xp) || 0) + (step * direction);
+  saveAndSendState();
+}
+
+function setDirectXP(val) {
+  state.xp = parseFloat(val) || 0;
+  saveAndSendState();
+}
+
+function addResult(type) {
+  if (type === 'win') {
+    state.wins = (state.wins || 0) + 1;
+    if (state.winLamps < 3) state.winLamps = (state.winLamps || 0) + 1;
+  } else if (type === 'loss') {
+    state.losses = (state.losses || 0) + 1;
+    if (state.lossLamps < 3) state.lossLamps = (state.lossLamps || 0) + 1;
+  }
+
+  saveAndSendState();
+
+  setTimeout(() => {
+    if (state.winLamps >= 3) {
+      if (confirm('勝ちランプが3つ付きました！ランプをリセットしますか？')) {
+        clearLamps();
+      }
+    } else if (state.lossLamps >= 3) {
+      if (confirm('負けランプが3つ付きました！ランプをリセットしますか？')) {
+        clearLamps();
+      }
+    }
+  }, 100);
+}
+
+function undoResult() {
+  if (state.winLamps > 0) {
+    state.winLamps--;
+    if (state.wins > 0) state.wins--;
+  } else if (state.lossLamps > 0) {
+    state.lossLamps--;
+    if (state.losses > 0) state.losses--;
+  }
+  saveAndSendState();
+}
+
+function clearLamps() {
+  state.winLamps = 0;
+  state.lossLamps = 0;
+  saveAndSendState();
+}
+
+function resetRecord() {
+  if (confirm('勝敗ランプと累計戦績（勝/敗数）を初期化しますか？')) {
+    state.winLamps = 0;
+    state.lossLamps = 0;
+    state.wins = 0;
+    state.losses = 0;
+    saveAndSendState();
+  }
+}
+
+function changeFont(font) { state.font = font; saveAndSendState(); }
+function changeColor(color) { state.color = color; saveAndSendState(); }
+function clearBG() {
+  state.bgData = "";
+  document.getElementById('imageLoader').value = "";
+  saveAndSendState();
+}
+
+document.getElementById('imageLoader').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      state.bgData = event.target.result;
+      saveAndSendState();
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+window.onload = loadSavedState;
+</script>
+</body>
+</html>
