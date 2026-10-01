@@ -8,15 +8,23 @@
 body { background: #1e1e24; color: #fff; padding: 12px; }
 .panel { display: flex; flex-direction: column; gap: 10px; }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-label { font-size: 12px; color: #aaa; width: 65px; }
-input[type="number"], select, input[type="color"] {
+label { font-size: 12px; color: #aaa; width: 80px; }
+select, input[type="color"] {
   padding: 6px 8px; font-size: 13px; border-radius: 4px;
   border: 1px solid #444; background: #2b2b36; color: #fff; outline: none;
 }
-input[type="number"] { width: 85px; }
 select { flex: 1; cursor: pointer; }
+
+/* ルール切替タブ */
+.rule-tabs { display: flex; gap: 4px; margin-bottom: 2px; }
+.rule-tab {
+  flex: 1; padding: 8px 4px; font-size: 12px; font-weight: bold; border: 1px solid #444;
+  border-radius: 6px; background: #2a2a35; color: #aaa; cursor: pointer; text-align: center;
+}
+.rule-tab.active { background: #007bff; color: #fff; border-color: #0056b3; }
+
 .btn {
-  padding: 8px 12px; font-size: 13px; font-weight: bold; border-radius: 6px;
+  padding: 10px; font-size: 14px; font-weight: bold; border-radius: 6px;
   border: none; cursor: pointer; color: white; transition: transform 0.1s;
 }
 .btn:active { transform: scale(0.95); }
@@ -25,6 +33,21 @@ select { flex: 1; cursor: pointer; }
 .btn-win { background-color: #00b0ff; flex: 1; }
 .btn-loss { background-color: #ff3d00; flex: 1; }
 .btn-undo { background-color: #666; width: 75px; }
+
+/* 直接入力 ＆ 1ずつ調整用の特大入力エリア */
+.direct-input-container {
+  display: flex; align-items: center; gap: 6px; width: 100%; margin: 4px 0;
+}
+.direct-input {
+  flex: 1; font-size: 24px; font-weight: bold; text-align: center; padding: 8px;
+  border-radius: 6px; border: 2px solid #00b0ff; background: #111116; color: #fff; outline: none;
+}
+.btn-step {
+  width: 50px; height: 48px; font-size: 22px; font-weight: bold; border-radius: 6px;
+  border: none; background: #3a3a4c; color: #fff; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+}
+.btn-step:active { background: #555; transform: scale(0.95); }
 
 .btn-reset-lamp { background-color: #fd7e14; flex: 1; padding: 10px; font-size: 12px; }
 .btn-reset-record { background-color: #c82333; flex: 1; padding: 10px; font-size: 12px; }
@@ -49,21 +72,21 @@ select { flex: 1; cursor: pointer; }
 }
 .status { font-size: 10px; color: #00ff66; text-align: right; }
 
-/* ランププレビュー設定 */
 .lamp-preview { display: flex; flex-direction: column; gap: 6px; background: #111116; padding: 8px 10px; border-radius: 6px; }
 .lamp-row { display: flex; gap: 6px; align-items: center; }
 .lamp-row-label { font-size: 11px; color: #aaa; width: 35px; }
 
-/* 勝ちランププレビュー（少し大きめ） */
 .lamp-dot-win { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; }
 .lamp-dot-win.win { border-color: #00ff66; color: #00ff66; background: rgba(0,255,102,0.2); }
 
-/* 負けランププレビュー（少し小さめ） */
 .lamp-dot-loss { width: 15px; height: 15px; border-radius: 50%; border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; }
 .lamp-dot-loss.loss-on { border-color: #ff9900; background: #ff9900; box-shadow: 0 0 6px #ff9900; }
 .lamp-dot-loss.loss-off { border-color: #ff3366; color: #ff3366; background: rgba(255,51,102,0.1); }
 
 .record-text { margin-left: auto; font-size: 13px; font-weight: bold; color: #ffd700; }
+
+.checkbox-label { font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.checkbox-label input { width: 16px; height: 16px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -77,18 +100,25 @@ select { flex: 1; cursor: pointer; }
     <div class="status">通信機能: 正常</div>
   </div>
 
-  <div class="section-title">XP操作</div>
-  <div class="row">
-    <button class="btn btn-add" onclick="updateXP(1)">+ 加算</button>
-    <button class="btn btn-sub" onclick="updateXP(-1)">- 減算</button>
+  <div class="section-title">ルール選択（数値を個別保持）</div>
+  <div class="rule-tabs">
+    <button class="rule-tab active" id="tab-area" onclick="selectRule('area')">エリア</button>
+    <button class="rule-tab" id="tab-yagura" onclick="selectRule('yagura')">ヤグラ</button>
+    <button class="rule-tab" id="tab-hoko" onclick="selectRule('hoko')">ホコ</button>
+    <button class="rule-tab" id="tab-asari" onclick="selectRule('asari')">アサリ</button>
   </div>
+
+  <div class="section-title">XP操作（25固定）</div>
   <div class="row">
-    <label>増減値:</label>
-    <input type="number" id="stepInput" value="10" step="1">
+    <button class="btn btn-add" onclick="updateXP(25)">+ 25増</button>
+    <button class="btn btn-sub" onclick="updateXP(-25)">- 25減</button>
   </div>
-  <div class="row">
-    <label>直接入力:</label>
-    <input type="number" id="directInput" value="2000" onchange="setDirectXP(this.value)">
+
+  <div class="section-title">XP直接入力 / 1づつ調整（ボタン拡大）</div>
+  <div class="direct-input-container">
+    <button class="btn-step" onclick="updateXP(-1)">-1</button>
+    <input type="number" id="directInput" class="direct-input" value="2000" onchange="setDirectXP(this.value)">
+    <button class="btn-step" onclick="updateXP(1)">+1</button>
   </div>
 
   <div class="section-title">勝敗・ランプ判定</div>
@@ -120,6 +150,12 @@ select { flex: 1; cursor: pointer; }
   </div>
 
   <div class="section-title">デザイン設定</div>
+  <div class="row">
+    <label class="checkbox-label" style="width: 100%;">
+      <input type="checkbox" id="showRecordToggle" onchange="toggleShowRecord(this.checked)">
+      総合戦績（〇〇勝〇〇敗）を画面表示する
+    </label>
+  </div>
   <div class="row">
     <label>フォント:</label>
     <select id="fontSelect" onchange="changeFont(this.value)">
@@ -173,7 +209,14 @@ let bc = null;
 try { bc = new BroadcastChannel(channelName); } catch(e) {}
 
 let state = {
-  xp: 2000,
+  currentRule: 'area',
+  rules: {
+    area: 2000,
+    yagura: 2000,
+    hoko: 2000,
+    asari: 2000
+  },
+  showRecord: true,
   font: "'Russo One', sans-serif",
   color: "#00ff66",
   bgData: "",
@@ -185,7 +228,24 @@ let state = {
 };
 
 function renderUI() {
-  document.getElementById('directInput').value = state.xp || 2000;
+  const rules = ['area', 'yagura', 'hoko', 'asari'];
+  rules.forEach(r => {
+    const tabBtn = document.getElementById(`tab-${r}`);
+    if (tabBtn) {
+      if (r === state.currentRule) {
+        tabBtn.classList.add('active');
+      } else {
+        tabBtn.classList.remove('active');
+      }
+    }
+  });
+
+  const currentVal = (state.rules && state.rules[state.currentRule] !== undefined)
+    ? state.rules[state.currentRule] : 2000;
+  document.getElementById('directInput').value = currentVal;
+
+  document.getElementById('showRecordToggle').checked = state.showRecord !== false;
+
   if(state.font) document.getElementById('fontSelect').value = state.font;
   if(state.color) document.getElementById('colorPicker').value = state.color;
 
@@ -229,19 +289,41 @@ function loadSavedState() {
     try {
       const parsed = JSON.parse(saved);
       state = { ...state, ...parsed };
+      if (!state.rules) {
+        state.rules = {
+          area: parsed.xp || 2000,
+          yagura: 2000,
+          hoko: 2000,
+          asari: 2000
+        };
+      }
+      if (!state.currentRule) state.currentRule = 'area';
+      if (state.showRecord === undefined) state.showRecord = true;
     } catch(e) {}
   }
   saveAndSendState();
 }
 
-function updateXP(direction) {
-  const step = parseFloat(document.getElementById('stepInput').value) || 0;
-  state.xp = (parseFloat(state.xp) || 0) + (step * direction);
+function selectRule(rule) {
+  state.currentRule = rule;
+  saveAndSendState();
+}
+
+function updateXP(val) {
+  if (!state.rules) state.rules = { area: 2000, yagura: 2000, hoko: 2000, asari: 2000 };
+  const current = parseFloat(state.rules[state.currentRule]) || 0;
+  state.rules[state.currentRule] = current + val;
   saveAndSendState();
 }
 
 function setDirectXP(val) {
-  state.xp = parseFloat(val) || 0;
+  if (!state.rules) state.rules = { area: 2000, yagura: 2000, hoko: 2000, asari: 2000 };
+  state.rules[state.currentRule] = parseFloat(val) || 0;
+  saveAndSendState();
+}
+
+function toggleShowRecord(show) {
+  state.showRecord = show;
   saveAndSendState();
 }
 
