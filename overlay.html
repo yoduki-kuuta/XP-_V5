@@ -32,7 +32,6 @@ html, body { width: 100%; height: 100%; background-color: transparent !important
   transform: skewX(-8deg); margin-top: 5px;
 }
 
-/* 2段構造のランプブロック */
 .lamps-block { display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .lamp-group { display: flex; gap: 20px; align-items: center; justify-content: center; }
 
@@ -59,13 +58,11 @@ html, body { width: 100%; height: 100%; background-color: transparent !important
   font-size: 55px; font-weight: 900; line-height: 1;
   transition: all 0.2s ease-in-out;
 }
-/* 常時点灯（オレンジ色） */
 .lamp-loss.on {
   border-color: #ff9900; background: #ff9900;
   box-shadow: 0 0 25px #ff9900, 0 0 50px rgba(255, 153, 0, 0.6), inset 0 0 12px #ffffff;
   color: transparent;
 }
-/* 消灯＋✖表示（赤・ネオン） */
 .lamp-loss.off {
   border-color: #ff3366; color: #ff3366; background: rgba(50, 0, 15, 0.9);
   box-shadow: 0 0 18px rgba(255,51,102,0.4), inset 0 0 8px rgba(0,0,0,0.8);
@@ -87,13 +84,11 @@ html, body { width: 100%; height: 100%; background-color: transparent !important
   
   <div class="sub-row" id="subRow">
     <div class="lamps-block">
-      <!-- 上段：勝ちランプ（大） -->
       <div class="lamp-group">
         <div class="lamp-win" id="winLamp0"></div>
         <div class="lamp-win" id="winLamp1"></div>
         <div class="lamp-win" id="winLamp2"></div>
       </div>
-      <!-- 下段：負けランプ（小） -->
       <div class="lamp-group">
         <div class="lamp-loss on" id="lossLamp0"></div>
         <div class="lamp-loss on" id="lossLamp1"></div>
@@ -126,7 +121,16 @@ function adjustFontSize() {
 function applyState(data) {
   if (!data) return;
   
-  document.getElementById('xpDisplay').innerText = `XP ${data.xp}`;
+  const ruleKey = data.currentRule || 'area';
+  let xpVal = 2000;
+  if (data.rules && data.rules[ruleKey] !== undefined) {
+    xpVal = data.rules[ruleKey];
+  } else if (data.xp !== undefined) {
+    xpVal = data.xp;
+  }
+
+  document.getElementById('xpDisplay').innerText = `XP ${xpVal}`;
+
   if(data.font) {
     document.getElementById('xpDisplay').style.fontFamily = data.font;
     document.getElementById('overlayRecord').style.fontFamily = data.font;
@@ -142,7 +146,6 @@ function applyState(data) {
     img.src = '';
   }
 
-  // 勝ちランプ表示適用
   const winCount = data.winLamps || 0;
   for (let i = 0; i < 3; i++) {
     const el = document.getElementById(`winLamp${i}`);
@@ -155,7 +158,6 @@ function applyState(data) {
     }
   }
 
-  // 負けランプ表示適用（未消灯=オレンジ点灯、消灯=✖表示）
   const lossCount = data.lossLamps || 0;
   for (let i = 0; i < 3; i++) {
     const el = document.getElementById(`lossLamp${i}`);
@@ -170,7 +172,15 @@ function applyState(data) {
 
   const wins = data.wins || 0;
   const losses = data.losses || 0;
-  document.getElementById('overlayRecord').innerText = `${wins}勝 ${losses}敗`;
+  const recordEl = document.getElementById('overlayRecord');
+  recordEl.innerText = `${wins}勝 ${losses}敗`;
+
+  // 総合戦績のON/OFF切り替え
+  if (data.showRecord === false) {
+    recordEl.style.display = 'none';
+  } else {
+    recordEl.style.display = 'block';
+  }
 
   adjustFontSize();
 }
