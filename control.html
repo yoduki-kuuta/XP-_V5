@@ -49,6 +49,13 @@ select { flex: 1; cursor: pointer; }
 }
 .btn-step:active { background: #555; transform: scale(0.95); }
 
+/* 計測中設定用ボタン */
+.btn-measuring {
+  padding: 10px; font-size: 13px; font-weight: bold; border-radius: 6px;
+  border: none; background-color: #17a2b8; color: #fff; cursor: pointer; white-space: nowrap;
+}
+.btn-measuring:active { transform: scale(0.95); }
+
 .btn-reset-lamp { background-color: #fd7e14; flex: 1; padding: 10px; font-size: 12px; }
 .btn-reset-record { background-color: #c82333; flex: 1; padding: 10px; font-size: 12px; }
 
@@ -114,11 +121,12 @@ select { flex: 1; cursor: pointer; }
     <button class="btn btn-sub" onclick="updateXP(-25)">- 25減</button>
   </div>
 
-  <div class="section-title">XP直接入力 / 1づつ調整（ボタン拡大）</div>
+  <div class="section-title">XP直接入力 / 1づつ調整 / 計測中</div>
   <div class="direct-input-container">
     <button class="btn-step" onclick="updateXP(-1)">-1</button>
-    <input type="number" id="directInput" class="direct-input" value="2000" onchange="setDirectXP(this.value)">
+    <input type="text" id="directInput" class="direct-input" value="2000" onchange="setDirectXP(this.value)">
     <button class="btn-step" onclick="updateXP(1)">+1</button>
+    <button class="btn-measuring" onclick="setMeasuring()">計測中</button>
   </div>
 
   <div class="section-title">勝敗・ランプ判定</div>
@@ -311,14 +319,26 @@ function selectRule(rule) {
 
 function updateXP(val) {
   if (!state.rules) state.rules = { area: 2000, yagura: 2000, hoko: 2000, asari: 2000 };
-  const current = parseFloat(state.rules[state.currentRule]) || 0;
+  let current = parseFloat(state.rules[state.currentRule]);
+  if (isNaN(current)) current = 2000;
   state.rules[state.currentRule] = current + val;
   saveAndSendState();
 }
 
 function setDirectXP(val) {
   if (!state.rules) state.rules = { area: 2000, yagura: 2000, hoko: 2000, asari: 2000 };
-  state.rules[state.currentRule] = parseFloat(val) || 0;
+  if (val.trim() === '計測中' || val.trim() === '') {
+    state.rules[state.currentRule] = '計測中';
+  } else {
+    const num = parseFloat(val);
+    state.rules[state.currentRule] = isNaN(num) ? '計測中' : num;
+  }
+  saveAndSendState();
+}
+
+function setMeasuring() {
+  if (!state.rules) state.rules = { area: 2000, yagura: 2000, hoko: 2000, asari: 2000 };
+  state.rules[state.currentRule] = '計測中';
   saveAndSendState();
 }
 
