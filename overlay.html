@@ -129,7 +129,11 @@ function applyState(data) {
     xpVal = data.xp;
   }
 
-  document.getElementById('xpDisplay').innerText = `XP ${xpVal}`;
+  if (xpVal === '計測中' || isNaN(Number(xpVal))) {
+    document.getElementById('xpDisplay').innerText = `XP 計測中`;
+  } else {
+    document.getElementById('xpDisplay').innerText = `XP ${xpVal}`;
+  }
 
   if(data.font) {
     document.getElementById('xpDisplay').style.fontFamily = data.font;
