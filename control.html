@@ -115,10 +115,10 @@ select { flex: 1; cursor: pointer; }
     <button class="rule-tab" id="tab-asari" onclick="selectRule('asari')">アサリ</button>
   </div>
 
-  <div class="section-title">XP操作（25固定）</div>
+  <div class="section-title">XP操作（自動切替: 2500未満は25 / 2500以上は15）</div>
   <div class="row">
-    <button class="btn btn-add" onclick="updateXP(25)">+ 25増</button>
-    <button class="btn btn-sub" onclick="updateXP(-25)">- 25減</button>
+    <button class="btn btn-add" id="btnAdd" onclick="handleAutoXP(1)">+ 25増</button>
+    <button class="btn btn-sub" id="btnSub" onclick="handleAutoXP(-1)">- 25減</button>
   </div>
 
   <div class="section-title">XP直接入力 / 1づつ調整 / 計測中</div>
@@ -252,6 +252,14 @@ function renderUI() {
     ? state.rules[state.currentRule] : 2000;
   document.getElementById('directInput').value = currentVal;
 
+  // 2500以上/未満によるボタン表記の自動切り替え
+  const numVal = parseFloat(currentVal);
+  const step = (!isNaN(numVal) && numVal >= 2500) ? 15 : 25;
+  const btnAdd = document.getElementById('btnAdd');
+  const btnSub = document.getElementById('btnSub');
+  if (btnAdd) btnAdd.innerText = `+ ${step}増`;
+  if (btnSub) btnSub.innerText = `- ${step}減`;
+
   document.getElementById('showRecordToggle').checked = state.showRecord !== false;
 
   if(state.font) document.getElementById('fontSelect').value = state.font;
@@ -314,6 +322,16 @@ function loadSavedState() {
 
 function selectRule(rule) {
   state.currentRule = rule;
+  saveAndSendState();
+}
+
+function handleAutoXP(direction) {
+  if (!state.rules) state.rules = { area: 2000, yagura: 2000, hoko: 2000, asari: 2000 };
+  let current = parseFloat(state.rules[state.currentRule]);
+  if (isNaN(current)) current = 2000;
+
+  const step = (current >= 2500) ? 15 : 25;
+  state.rules[state.currentRule] = current + (step * direction);
   saveAndSendState();
 }
 
